@@ -1,0 +1,27 @@
+From 969c19e65c7264f468e69f209bb157b46d45dc1f Mon Sep 17 00:00:00 2001
+From: Joel Winarske <joel.winarske@gmail.com>
+Date: Fri, 13 Jun 2025 10:04:37 -0700
+Subject: [PATCH] version SO
+
+Upstream-Status: Inappropriate
+
+Signed-off-by: Joel Winarske <joel.winarske@gmail.com>
+---
+ CMakeLists.txt | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 0148dff..f9b9c58 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -283,6 +283,7 @@ endfunction()
+ # ===== sentry library =====
+ 
+ add_library(sentry ${SENTRY_LIBRARY_TYPE} "${PROJECT_SOURCE_DIR}/vendor/mpack.c")
++set_target_properties(sentry PROPERTIES SOVERSION "${PROJECT_VERSION}")
+ if ("${CMAKE_GENERATOR_PLATFORM}" STREQUAL "Gaming.Xbox.Scarlett.x64")
+ 	set_target_properties(sentry PROPERTIES VS_USER_PROPS gdk_build.props)
+ endif()
+-- 
+2.49.0
+
