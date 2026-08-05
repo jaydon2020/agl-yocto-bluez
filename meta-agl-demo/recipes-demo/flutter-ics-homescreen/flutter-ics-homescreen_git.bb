@@ -6,7 +6,7 @@ SECTION = "graphics"
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=3b83ef96387f14655fc854ddc3c6bd57"
 
-SRC_URI = "git://gerrit.automotivelinux.org/gerrit/apps/flutter-ics-homescreen;protocol=https;branch=${AGL_BRANCH} \
+SRC_URI = "git://gerrit.automotivelinux.org/gerrit/apps/flutter-ics-homescreen;protocol=https;nobranch=1 \
            file://ics-homescreen.toml \
            file://flutter-ics-homescreen.service \
            file://flutter-ics-homescreen.env \
@@ -16,9 +16,11 @@ SRC_URI = "git://gerrit.automotivelinux.org/gerrit/apps/flutter-ics-homescreen;p
            file://flutter-ics-homescreen.toml.kvm-tradeshow \
            file://kvm.conf \
 "
-SRCREV = "27c6af705b57b627b90d85007228e918903c7560"
+SRCREV = "58c66634b506bdade0ea597b629586d6e1687270"
 
 PUBSPEC_APPNAME = "flutter_ics_homescreen"
+
+DEPENDS += "systemd"
 
 inherit flutter-app systemd update-alternatives
 

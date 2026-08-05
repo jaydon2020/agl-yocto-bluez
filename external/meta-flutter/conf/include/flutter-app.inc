@@ -12,12 +12,24 @@ require conf/include/app-utils.inc
 require conf/include/common.inc
 
 DEPENDS += " \
+    compiler-rt \
     flutter-engine \
+    libcxx \
+    lld-native \
     "
+
+TOOLCHAIN = "clang"
+TOOLCHAIN_NATIVE = "clang"
+TC_CXX_RUNTIME = "llvm"
+PREFERRED_PROVIDER_llvm = "clang"
+PREFERRED_PROVIDER_llvm-native = "clang-native"
+PREFERRED_PROVIDER_libgcc = "compiler-rt"
+LIBCPLUSPLUS = "-stdlib=libc++"
 
 BUILD_TYPE = "app"
 
 FLUTTER_BUILD_ARGS ??= "bundle"
+FLUTTER_BUILD_ARGS:append = " --target-platform linux-${@{'x86_64': 'x64', 'x86-64': 'x64', 'aarch64': 'arm64'}[d.getVar('TARGET_ARCH')]}"
 
 do_install() {
 
@@ -36,6 +48,11 @@ do_install() {
         # App artifacts
         install -d ${D}${FLUTTER_INSTALL_DIR}/${FLUTTER_SDK_VERSION}/${FLUTTER_RUNTIME_MODE}/data/flutter_assets
         install -d ${D}${FLUTTER_INSTALL_DIR}/${FLUTTER_SDK_VERSION}/${FLUTTER_RUNTIME_MODE}/lib
+
+        if [ -d ${S}/${FLUTTER_APPLICATION_PATH}/build/native_assets/linux ]; then
+            cp -r ${S}/${FLUTTER_APPLICATION_PATH}/build/native_assets/linux/* \
+                ${D}${FLUTTER_INSTALL_DIR}/${FLUTTER_SDK_VERSION}/${FLUTTER_RUNTIME_MODE}/lib/
+        fi
 
         if [ ! -z "${APP_CONFIG}" ]; then
             install -D -m 0644 ${UNPACKDIR}/${APP_CONFIG} \
@@ -66,6 +83,7 @@ do_install() {
 }
 
 INSANE_SKIP:${PN} += " ldflags libdir dev-so buildpaths"
+INSANE_SKIP:${PN}-dbg += " libdir"
 
 FILES:${PN} = "\
     ${bindir} \

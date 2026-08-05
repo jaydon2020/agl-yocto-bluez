@@ -5,7 +5,9 @@
 
 DEPENDS += " \
     ca-certificates-native \
+    cmake-native \
     flutter-sdk-native \
+    pkgconfig-native \
     unzip-native \
     "
 
@@ -177,17 +179,11 @@ python do_archive_pub_cache() {
     import shutil
     from bb.fetch2 import FetchError
 
-    workspace = d.getVar('WORKDIR')
-    pub_cache_archive_file = os.path.join(workspace, 'PUB_CACHE_ARCHIVE')
-    if os.path.exists(pub_cache_archive_file):
-        with open(pub_cache_archive_file, 'r') as f:
-            localfile = f.read()
-            if os.path.exists(localfile):
-                return
-
     app_root = os.path.join(d.getVar("S"), d.getVar("FLUTTER_APPLICATION_PATH"))
     localfile = get_pub_cache_archive_name(d, app_root)
     localpath = os.path.join(d.getVar("DL_DIR"), localfile)
+    if os.path.exists(localpath):
+        return
 
     pub_cache = d.getVar("PUB_CACHE")
     flutter_sdk = os.path.join(d.getVar("STAGING_DATADIR_NATIVE"), 'flutter/sdk')
@@ -345,6 +341,9 @@ python do_cleanall:append() {
 #
 python do_compile() {
 
+    import shlex
+    import shutil
+
     pubspec_yaml_appname = get_pubspec_yaml_appname(d)
     pubspec_appname = d.getVar("PUBSPEC_APPNAME")
     if pubspec_appname != pubspec_yaml_appname:
@@ -352,12 +351,54 @@ python do_compile() {
 
     flutter_sdk = d.getVar('FLUTTER_SDK')
 
-    env = os.environ
-    env['PATH'] = f'{flutter_sdk}/bin:{d.getVar("PATH")}'
-    env['PUB_CACHE'] = d.getVar('PUB_CACHE')
+    env = os.environ.copy()
+
+    # Flutter locates a Linux native-assets toolchain via clang-style names.
+    # Wrap BitBake's selected cross tools so all Dart build hooks use the
+    # recipe toolchain and sysroot, regardless of the underlying compiler.
+    native_toolchain_dir = os.path.join(d.getVar("WORKDIR"), 'dart-native-toolchain')
+    os.makedirs(native_toolchain_dir, exist_ok=True)
+    for name, variable, flags in [
+        ('clang', 'CC', ''),
+        ('cc', 'CC', ''),
+        ('clang++', 'CXX', d.getVar('LIBCPLUSPLUS') or ''),
+        ('c++', 'CXX', d.getVar('LIBCPLUSPLUS') or ''),
+        ('ar', 'AR', ''),
+        ('ranlib', 'RANLIB', ''),
+        ('ld', 'LD', ''),
+    ]:
+        command = d.getVar(variable)
+        if not command:
+            continue
+        arguments = shlex.split(f'{command} {flags}')
+        executable = shutil.which(arguments[0], path=d.getVar("PATH"))
+        if not executable:
+            bb.fatal(f'Unable to find {variable} tool: {arguments[0]}')
+        wrapper = os.path.join(native_toolchain_dir, name)
+        with open(wrapper, 'w') as f:
+            f.write(f'#!/bin/sh\nexec {shlex.join([executable, *arguments[1:]])} "$@"\n')
+        os.chmod(wrapper, 0o755)
 
     staging_dir_target = d.getVar('STAGING_DIR_TARGET')
-    env['PKG_CONFIG_PATH'] = f'{staging_dir_target}/usr/lib/pkgconfig:{staging_dir_target}/usr/share/pkgconfig:{d.getVar("PKG_CONFIG_PATH")}'
+    staging_libdir = d.getVar('STAGING_LIBDIR')
+    staging_datadir = d.getVar('STAGING_DATADIR')
+    pkg_config = shutil.which('pkg-config', path=d.getVar("PATH"))
+    if not pkg_config:
+        bb.fatal('Unable to find pkg-config')
+    pkg_config_path = f'{staging_libdir}/pkgconfig:{staging_datadir}/pkgconfig:{d.getVar("PKG_CONFIG_PATH")}'
+    wrapper = os.path.join(native_toolchain_dir, 'pkg-config')
+    with open(wrapper, 'w') as f:
+        f.write(f'''#!/bin/sh
+export PKG_CONFIG_SYSROOT_DIR={shlex.quote(staging_dir_target)}
+export PKG_CONFIG_LIBDIR={shlex.quote(pkg_config_path)}
+exec {shlex.quote(pkg_config)} "$@"
+''')
+    os.chmod(wrapper, 0o755)
+
+    env['PATH'] = f'{native_toolchain_dir}:{flutter_sdk}/bin:{d.getVar("PATH")}'
+    env['PUB_CACHE'] = d.getVar('PUB_CACHE')
+
+    env['PKG_CONFIG_PATH'] = pkg_config_path
 
     workdir = d.getVar("WORKDIR")
     # required for flutter: https://github.com/flutter/flutter/issues/59430
@@ -404,6 +445,8 @@ def build_app(d, source_dir, flutter_sdk, pubspec_appname, flutter_application_p
     import glob
     import shutil
     import json
+
+    shutil.rmtree(os.path.join(source_root, '.dart_tool', 'hooks_runner'), ignore_errors=True)
 
     # determine build type based on what flutter-engine installed.
     datadir = d.getVar('datadir')
