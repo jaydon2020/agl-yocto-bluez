@@ -6,7 +6,7 @@ SECTION = "graphics"
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=3b83ef96387f14655fc854ddc3c6bd57"
 
-SRC_URI = "git://gerrit.automotivelinux.org/gerrit/apps/flutter-ics-homescreen;protocol=https;branch=${AGL_BRANCH} \
+SRC_URI = "git://gerrit.automotivelinux.org/gerrit/apps/flutter-ics-homescreen;protocol=https;nobranch=1 \
            file://ics-homescreen.toml \
            file://flutter-ics-homescreen.service \
            file://flutter-ics-homescreen.env \
@@ -16,7 +16,7 @@ SRC_URI = "git://gerrit.automotivelinux.org/gerrit/apps/flutter-ics-homescreen;p
            file://flutter-ics-homescreen.toml.kvm-tradeshow \
            file://kvm.conf \
 "
-SRCREV = "27c6af705b57b627b90d85007228e918903c7560"
+SRCREV = "58c66634b506bdade0ea597b629586d6e1687270"
 
 PUBSPEC_APPNAME = "flutter_ics_homescreen"
 
@@ -25,6 +25,19 @@ inherit flutter-app systemd update-alternatives
 APP_CONFIG = "ics-homescreen.toml"
 
 PUBSPEC_IGNORE_LOCKFILE = "1"
+
+FLUTTER_TARGET_PLATFORM = "linux-x64"
+FLUTTER_TARGET_PLATFORM:aarch64 = "linux-arm64"
+FLUTTER_BUILD_ARGS:append = " --target-platform ${FLUTTER_TARGET_PLATFORM} --no-pub"
+
+python do_compile:prepend() {
+    import os
+    hook = os.path.join(d.getVar("PUB_CACHE"), "hosted/pub.dev",
+                        "bluez_native-0.3.1",
+                        "hook/build.dart")
+    if os.path.exists(hook):
+        os.remove(hook)
+}
 
 SYSTEMD_SERVICE:${PN} = "flutter-ics-homescreen.service"
 
@@ -65,6 +78,7 @@ RDEPENDS:${PN} += " \
     flutter-auto \
     agl-flutter-env \
     applaunchd \
+    bluez-native-library \
 "
 
 # KVM tradeshow demo specific configuration:
@@ -81,4 +95,5 @@ ALTERNATIVE:${PN}-conf-kvm-tradeshow = "flutter-ics-homescreen.toml"
 ALTERNATIVE_TARGET_${PN}-conf-kvm-tradeshow = "${sysconfdir}/xdg/AGL/flutter-ics-homescreen.toml.kvm-tradeshow"
 ALTERNATIVE_PRIORITY_${PN}-conf-kvm-tradeshow = "11"
 
+# Dart 3.10 refreshes advisory metadata even during an enforced offline restore.
 do_compile[network] = "1"
