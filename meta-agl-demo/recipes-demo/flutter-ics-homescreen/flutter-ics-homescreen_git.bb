@@ -20,15 +20,54 @@ SRCREV = "58c66634b506bdade0ea597b629586d6e1687270"
 
 PUBSPEC_APPNAME = "flutter_ics_homescreen"
 
-inherit flutter-app flutter-native-assets systemd update-alternatives
+DEPENDS += " \
+    compiler-rt \
+    libcxx \
+    lld-native \
+    ninja-native \
+    systemd \
+"
 
-FLUTTER_NATIVE_ASSETS_DEPENDS += "systemd"
+TOOLCHAIN = "clang"
+TOOLCHAIN_NATIVE = "clang"
+TC_CXX_RUNTIME = "llvm"
+PREFERRED_PROVIDER_llvm = "clang"
+PREFERRED_PROVIDER_llvm-native = "clang-native"
+PREFERRED_PROVIDER_libgcc = "compiler-rt"
+LIBCPLUSPLUS = "-stdlib=libc++"
+CXXFLAGS:append = " ${LIBCPLUSPLUS}"
+
+OECMAKE_SOURCEPATH = "${PUB_CACHE}/hosted/pub.dev/bluez_native-0.3.1/native"
+DEBUG_PREFIX_MAP_EXTRA:append = " -ffile-prefix-map=${OECMAKE_SOURCEPATH}=${TARGET_DBGSRC_DIR}/bluez_native"
+
+inherit cmake flutter-app pkgconfig systemd update-alternatives
+
+EXTRA_OECMAKE = "-DBUILD_TESTING=OFF -DBLUEZ_HOOK_BUILD=ON"
+
+FLUTTER_TARGET_PLATFORM = "linux-x64"
+FLUTTER_TARGET_PLATFORM:aarch64 = "linux-arm64"
+FLUTTER_BUILD_ARGS:append = " --target-platform=${FLUTTER_TARGET_PLATFORM}"
 
 APP_CONFIG = "ics-homescreen.toml"
 
 PUBSPEC_IGNORE_LOCKFILE = "1"
 
 SYSTEMD_SERVICE:${PN} = "flutter-ics-homescreen.service"
+
+python do_compile:prepend() {
+    import os
+    hook = os.path.join(d.getVar("PUB_CACHE"), "hosted/pub.dev",
+                        "bluez_native-0.3.1", "hook/build.dart")
+    if os.path.exists(hook):
+        os.remove(hook)
+}
+
+python do_cmake_compile() {
+    bb.build.exec_func('cmake_do_compile', d)
+}
+
+addtask cmake_compile after do_compile before do_install
+do_cmake_compile[dirs] = "${B}"
 
 # Disable the background animation on all platforms except the Renesas M3/H3 for now
 DISABLE_BG_ANIMATION = "-DDISABLE_BKG_ANIMATION=true"
@@ -57,11 +96,20 @@ do_install:append() {
     install -m 0644 ${UNPACKDIR}/kuksa.toml ${D}${sysconfdir}/xdg/AGL/flutter-ics-homescreen/
     install -m 0644 ${UNPACKDIR}/flutter-ics-homescreen.token ${D}${sysconfdir}/xdg/AGL/flutter-ics-homescreen/
     install -m 0644 ${UNPACKDIR}/radio-presets.toml ${D}${sysconfdir}/xdg/AGL/flutter-ics-homescreen/
+
+    for runtime_mode in ${FLUTTER_APP_RUNTIME_MODES}; do
+        app_libdir="${D}${FLUTTER_INSTALL_DIR}/${FLUTTER_SDK_VERSION}/$runtime_mode/lib"
+        if [ -d "$app_libdir" ]; then
+            install -m 0755 ${B}/libbluez_nc.so "$app_libdir/"
+        fi
+    done
 }
 
 ALTERNATIVE_LINK_NAME[flutter-ics-homescreen.toml] = "${sysconfdir}/xdg/AGL/flutter-ics-homescreen.toml"
 
 FILES:${PN} += "${datadir} ${sysconfdir}/xdg/AGL ${sysconfdir}/default"
+FILES:${PN}-dbg += "${FLUTTER_INSTALL_DIR}/*/*/lib/.debug/libbluez_nc.so"
+INSANE_SKIP:${PN}-dbg += "libdir"
 
 RDEPENDS:${PN} += " \
     flutter-auto \
