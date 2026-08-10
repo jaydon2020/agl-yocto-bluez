@@ -4,9 +4,13 @@ HOMEPAGE = "https://gerrit.automotivelinux.org/gerrit/apps/flutter-ics-homescree
 SECTION = "graphics"
 
 LICENSE = "Apache-2.0"
-LIC_FILES_CHKSUM = "file://LICENSE;md5=3b83ef96387f14655fc854ddc3c6bd57"
+LIC_FILES_CHKSUM = " \
+    file://LICENSE;md5=3b83ef96387f14655fc854ddc3c6bd57 \
+    file://../bluez-media-native/LICENSE;md5=4be81725e05bc258e9c398895cb112e1 \
+"
 
-SRC_URI = "git://gerrit.automotivelinux.org/gerrit/apps/flutter-ics-homescreen;protocol=https;nobranch=1 \
+SRC_URI = "git://github.com/jaydon2020/flutter-ics-homescreen.git;branch=bluez-media;protocol=https;name=homescreen;destsuffix=${BP} \
+           gitsm://github.com/jaydon2020/bluez_media_native.git;branch=main;protocol=https;name=media;destsuffix=bluez-media-native \
            file://ics-homescreen.toml \
            file://flutter-ics-homescreen.service \
            file://flutter-ics-homescreen.env \
@@ -16,7 +20,9 @@ SRC_URI = "git://gerrit.automotivelinux.org/gerrit/apps/flutter-ics-homescreen;p
            file://flutter-ics-homescreen.toml.kvm-tradeshow \
            file://kvm.conf \
 "
-SRCREV = "58c66634b506bdade0ea597b629586d6e1687270"
+SRCREV_homescreen = "a216ba717289ea0c472c8fa5ca6ebb1f72ca5f0c"
+SRCREV_media = "aec1fa3da6eac496134a6ee2fb61826b7281dd0f"
+SRCREV_FORMAT = "homescreen_media"
 
 PUBSPEC_APPNAME = "flutter_ics_homescreen"
 
@@ -38,9 +44,14 @@ LIBCPLUSPLUS = "-stdlib=libc++"
 CXXFLAGS:append = " ${LIBCPLUSPLUS}"
 
 BLUEZ_NATIVE_SOURCE = "${WORKDIR}/bluez_native"
+BLUEZ_MEDIA_DART_SOURCE = "${WORKDIR}/bluez_media_native"
+BLUEZ_MEDIA_NATIVE_SOURCE = "${UNPACKDIR}/bluez-media-native"
+BLUEZ_MEDIA_NATIVE_BUILD = "${WORKDIR}/bluez-media-build"
 OECMAKE_SOURCEPATH = "${BLUEZ_NATIVE_SOURCE}/native"
 DEBUG_PREFIX_MAP_EXTRA:append = " \
     -ffile-prefix-map=${OECMAKE_SOURCEPATH}=${TARGET_DBGSRC_DIR}/bluez_native \
+    -ffile-prefix-map=${BLUEZ_MEDIA_NATIVE_SOURCE}=${TARGET_DBGSRC_DIR}/bluez_media_native \
+    -ffile-prefix-map=${BLUEZ_MEDIA_NATIVE_BUILD}=${TARGET_DBGSRC_DIR}/bluez_media_native/build \
     -ffile-prefix-map=${PUB_CACHE}=${TARGET_DBGSRC_DIR}/pub-cache \
 "
 
@@ -58,7 +69,7 @@ PUBSPEC_IGNORE_LOCKFILE = "1"
 
 SYSTEMD_SERVICE:${PN} = "flutter-ics-homescreen.service"
 
-python do_prepare_bluez_native() {
+python do_prepare_native_packages() {
     import json
     import os
     from urllib.parse import unquote, urlparse
@@ -69,34 +80,56 @@ python do_prepare_bluez_native() {
     with open(package_config_path, "r") as config_file:
         package_config = json.load(config_file)
 
-    package = next((entry for entry in package_config["packages"]
-                    if entry["name"] == "bluez_native"), None)
-    if package is None:
-        bb.fatal("bluez_native is missing from Dart package_config.json")
+    packages = {
+        "bluez_native": d.getVar("BLUEZ_NATIVE_SOURCE"),
+        "bluez_media_native": d.getVar("BLUEZ_MEDIA_DART_SOURCE"),
+    }
+    for package_name, source in packages.items():
+        package = next((entry for entry in package_config["packages"]
+                        if entry["name"] == package_name), None)
+        if package is None:
+            bb.fatal("{} is missing from Dart package_config.json".format(
+                package_name))
 
-    root_uri = package["rootUri"]
-    parsed_uri = urlparse(root_uri)
-    if parsed_uri.scheme == "file":
-        package_root = unquote(parsed_uri.path)
-    elif not parsed_uri.scheme:
-        package_root = os.path.realpath(os.path.join(
-            os.path.dirname(package_config_path), root_uri))
-    else:
-        bb.fatal("Unsupported bluez_native root URI: {}".format(root_uri))
+        root_uri = package["rootUri"]
+        parsed_uri = urlparse(root_uri)
+        if parsed_uri.scheme == "file":
+            package_root = unquote(parsed_uri.path)
+        elif not parsed_uri.scheme:
+            package_root = os.path.realpath(os.path.join(
+                os.path.dirname(package_config_path), root_uri))
+        else:
+            bb.fatal("Unsupported {} root URI: {}".format(package_name,
+                                                           root_uri))
 
-    source = d.getVar("BLUEZ_NATIVE_SOURCE")
-    if os.path.lexists(source):
-        os.unlink(source)
-    os.symlink(package_root, source)
+        if os.path.lexists(source):
+            os.unlink(source)
+        os.symlink(package_root, source)
 }
 
-addtask prepare_bluez_native after do_restore_pub_cache before do_configure
+addtask prepare_native_packages after do_restore_pub_cache before do_configure
+
+python do_configure_bluez_media_native() {
+    import os
+
+    localdata = d.createCopy()
+    localdata.setVar("B", d.getVar("BLUEZ_MEDIA_NATIVE_BUILD"))
+    localdata.setVar("OECMAKE_SOURCEPATH", os.path.join(
+        d.getVar("BLUEZ_MEDIA_NATIVE_SOURCE"), "native"))
+    localdata.setVar("EXTRA_OECMAKE", "-DBUILD_TESTING=OFF")
+    bb.build.exec_func('cmake_do_configure', localdata)
+}
+
+addtask configure_bluez_media_native after do_configure before do_compile
+do_configure_bluez_media_native[dirs] = "${BLUEZ_MEDIA_NATIVE_BUILD}"
 
 python do_compile:prepend() {
     import os
-    hook = os.path.join(d.getVar("BLUEZ_NATIVE_SOURCE"), "hook/build.dart")
-    if os.path.exists(hook):
-        os.remove(hook)
+    for source in (d.getVar("BLUEZ_NATIVE_SOURCE"),
+                   d.getVar("BLUEZ_MEDIA_DART_SOURCE")):
+        hook = os.path.join(source, "hook", "build.dart")
+        if os.path.exists(hook):
+            os.remove(hook)
 }
 
 python do_cmake_compile() {
@@ -105,6 +138,15 @@ python do_cmake_compile() {
 
 addtask cmake_compile after do_compile before do_install
 do_cmake_compile[dirs] = "${B}"
+
+python do_compile_bluez_media_native() {
+    localdata = d.createCopy()
+    localdata.setVar("B", d.getVar("BLUEZ_MEDIA_NATIVE_BUILD"))
+    bb.build.exec_func('cmake_do_compile', localdata)
+}
+
+addtask compile_bluez_media_native after do_compile before do_install
+do_compile_bluez_media_native[dirs] = "${BLUEZ_MEDIA_NATIVE_BUILD}"
 
 # Disable the background animation on all platforms except the Renesas M3/H3 for now
 DISABLE_BG_ANIMATION = "-DDISABLE_BKG_ANIMATION=true"
@@ -138,6 +180,7 @@ do_install:append() {
         app_libdir="${D}${FLUTTER_INSTALL_DIR}/${FLUTTER_SDK_VERSION}/$runtime_mode/lib"
         if [ -d "$app_libdir" ]; then
             install -m 0755 ${B}/libbluez_nc.so "$app_libdir/"
+            install -m 0755 ${BLUEZ_MEDIA_NATIVE_BUILD}/libbluez_media_native.so "$app_libdir/"
         fi
     done
 }
@@ -145,7 +188,10 @@ do_install:append() {
 ALTERNATIVE_LINK_NAME[flutter-ics-homescreen.toml] = "${sysconfdir}/xdg/AGL/flutter-ics-homescreen.toml"
 
 FILES:${PN} += "${datadir} ${sysconfdir}/xdg/AGL ${sysconfdir}/default"
-FILES:${PN}-dbg += "${FLUTTER_INSTALL_DIR}/*/*/lib/.debug/libbluez_nc.so"
+FILES:${PN}-dbg += " \
+    ${FLUTTER_INSTALL_DIR}/*/*/lib/.debug/libbluez_nc.so \
+    ${FLUTTER_INSTALL_DIR}/*/*/lib/.debug/libbluez_media_native.so \
+"
 INSANE_SKIP:${PN}-dbg += "libdir"
 
 RDEPENDS:${PN} += " \
