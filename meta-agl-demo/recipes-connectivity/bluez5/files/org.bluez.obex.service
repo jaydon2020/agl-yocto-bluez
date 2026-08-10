@@ -1,0 +1,5 @@
+[D-BUS Service]
+Name=org.bluez.obex
+Exec=/usr/libexec/bluetooth/obexd --system-bus
+User=root
+SystemdService=obex.service
