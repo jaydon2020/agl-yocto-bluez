@@ -20,8 +20,8 @@ SRC_URI = "git://github.com/jaydon2020/flutter-ics-homescreen.git;branch=bluez-m
            file://flutter-ics-homescreen.toml.kvm-tradeshow \
            file://kvm.conf \
 "
-SRCREV_homescreen = "a216ba717289ea0c472c8fa5ca6ebb1f72ca5f0c"
-SRCREV_media = "aec1fa3da6eac496134a6ee2fb61826b7281dd0f"
+SRCREV_homescreen = "bef97f8fa20c14b6d2b1aeb5baa0d24c36441f58"
+SRCREV_media = "eb4b1f71e8f52b0d042b138889dbdf48cb86aca6"
 SRCREV_FORMAT = "homescreen_media"
 
 PUBSPEC_APPNAME = "flutter_ics_homescreen"
@@ -66,6 +66,7 @@ FLUTTER_BUILD_ARGS:append = " --target-platform=${FLUTTER_TARGET_PLATFORM}"
 APP_CONFIG = "ics-homescreen.toml"
 
 PUBSPEC_IGNORE_LOCKFILE = "1"
+FLUTTER_PREBUILD_CMD = "rm -f pubspec.lock && flutter pub get --offline"
 
 SYSTEMD_SERVICE:${PN} = "flutter-ics-homescreen.service"
 
