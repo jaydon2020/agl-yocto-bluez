@@ -1,12 +1,13 @@
 SUMMARY = "AGL ICS Flutter Homescreen"
 DESCRIPTION = "Demo Flutter homescreen for Automotive Grade Linux by ICS."
-HOMEPAGE = "https://gerrit.automotivelinux.org/gerrit/apps/flutter-ics-homescreen"
+HOMEPAGE = "https://github.com/jaydon2020/flutter-ics-homescreen"
 SECTION = "graphics"
 
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=3b83ef96387f14655fc854ddc3c6bd57"
 
-SRC_URI = "git://gerrit.automotivelinux.org/gerrit/apps/flutter-ics-homescreen;protocol=https;branch=${AGL_BRANCH} \
+SRC_URI = "git://github.com/jaydon2020/flutter-ics-homescreen.git;protocol=https;branch=local-test;name=app \
+           gitsm://github.com/jaydon2020/bluez_native.git;protocol=https;branch=fix-cross-compile;name=bluez;destsuffix=bluez_native \
            file://ics-homescreen.toml \
            file://flutter-ics-homescreen.service \
            file://flutter-ics-homescreen.env \
@@ -16,8 +17,9 @@ SRC_URI = "git://gerrit.automotivelinux.org/gerrit/apps/flutter-ics-homescreen;p
            file://flutter-ics-homescreen.toml.kvm-tradeshow \
            file://kvm.conf \
 "
-SRCREV = "27c6af705b57b627b90d85007228e918903c7560"
-
+SRCREV_app = "8e6a5224316a312b185b40b9cfd82482fec0f710"
+SRCREV_bluez = "0124d0545f556c68b5bb4e432b231d70cc45675a"
+SRCREV_FORMAT = "app_bluez"
 PUBSPEC_APPNAME = "flutter_ics_homescreen"
 
 inherit flutter-app systemd update-alternatives

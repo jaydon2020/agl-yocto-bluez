@@ -400,6 +400,31 @@ def build_web(d, source_root, env):
 def versiontuple(v):
     return tuple(map(int, (v.split("."))))
 
+def normalize_package_config_paths(package_config_json):
+    import json
+    from pathlib import Path
+    from urllib.parse import urlparse
+
+    with open(package_config_json, 'r') as f:
+        package_config = json.load(f)
+
+    changed = False
+    package_config_dir = Path(package_config_json).parent
+    for package in package_config.get('packages', []):
+        root_uri = package.get('rootUri')
+        if not root_uri or urlparse(root_uri).scheme:
+            continue
+
+        trailing_slash = root_uri.endswith('/')
+        absolute_uri = (package_config_dir / root_uri).resolve().as_uri()
+        package['rootUri'] = absolute_uri + ('/' if trailing_slash else '')
+        changed = True
+
+    if changed:
+        with open(package_config_json, 'w') as f:
+            json.dump(package_config, f, indent=2)
+            f.write('\n')
+
 def build_app(d, source_dir, flutter_sdk, pubspec_appname, flutter_application_path, staging_dir_target, source_root, env):
     import glob
     import shutil
@@ -484,6 +509,8 @@ def build_app(d, source_dir, flutter_sdk, pubspec_appname, flutter_application_p
                 with open(workspace_ref_json, 'r') as f:
                     workspace_ref_json_content = json.load(f)
                     package_config_json = f'{os.path.dirname(workspace_ref_json)}/{workspace_ref_json_content["workspaceRoot"]}/.dart_tool/package_config.json'
+
+            normalize_package_config_paths(package_config_json)
 
             if not new_build_scheme:
                 dart_runtime = f'{flutter_sdk}/bin/cache/dart-sdk/bin/dart'
