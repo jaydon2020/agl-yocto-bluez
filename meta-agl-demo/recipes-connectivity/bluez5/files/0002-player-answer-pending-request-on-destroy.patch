@@ -1,0 +1,107 @@
+From patchwork Fri Aug 21 19:34:46 2026
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+X-Patchwork-Submitter: George Kiagiadakis <george.kiagiadakis@collabora.com>
+X-Patchwork-Id: 14762405
+Received: from bali.collaboradmins.com (bali.collaboradmins.com
+ [148.251.105.195])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by smtp.subspace.kernel.org (Postfix) with ESMTPS id D5E0740B6E0
+	for <linux-bluetooth@vger.kernel.org>; Fri, 21 Aug 2026 19:35:23 +0000 (UTC)
+Authentication-Results: smtp.subspace.kernel.org;
+ arc=none smtp.client-ip=148.251.105.195
+ARC-Seal: i=1; a=rsa-sha256; d=subspace.kernel.org; s=arc-20240116;
+	t=1787340926; cv=none;
+ b=d5DgySxFXBQSkCp4YO7RoBd4+2iBA9Z162ZvjTsMGmlZlOM+paqXMXxqaVRnZMyKcwR8KERKa2bGJQEX62BhLUhQKRqNikGaKzMKH6JwWqzR7PbAOqY9XHnYOU2tg13MvrldAuwdetB/+8E5qBu4h6LZLLnqH5oDlucNqbjWfyA=
+ARC-Message-Signature: i=1; a=rsa-sha256; d=subspace.kernel.org;
+	s=arc-20240116; t=1787340926; c=relaxed/simple;
+	bh=kR26hFqWMwaI6KiVDXXU2mgAajlJ1aVlGWffigzyDMY=;
+	h=From:To:Cc:Subject:Date:Message-ID:In-Reply-To:References:
+	 MIME-Version;
+ b=JOigYe7pqF5l6UALc6N8fSIW+cmdunEnyI9jAy0fi1cG3pZifCiwwhryejILal5NMpl+O3nnJ+egWgid2e993AmuNC4v7UkHAlMWD/YBT2Az+GA0y1kBL8QzSBsdQ5w2ZpxOVlyN89JRNeGilx5DFe+gptwdhiu4YhnzfJqpNgM=
+ARC-Authentication-Results: i=1; smtp.subspace.kernel.org;
+ dmarc=pass (p=none dis=none) header.from=collabora.com;
+ spf=pass smtp.mailfrom=collabora.com;
+ dkim=pass (2048-bit key) header.d=collabora.com header.i=@collabora.com
+ header.b=btiHiVJQ; arc=none smtp.client-ip=148.251.105.195
+Authentication-Results: smtp.subspace.kernel.org;
+ dmarc=pass (p=none dis=none) header.from=collabora.com
+Authentication-Results: smtp.subspace.kernel.org;
+ spf=pass smtp.mailfrom=collabora.com
+Authentication-Results: smtp.subspace.kernel.org;
+	dkim=pass (2048-bit key) header.d=collabora.com header.i=@collabora.com
+ header.b="btiHiVJQ"
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=collabora.com;
+	s=mail; t=1787340922;
+	bh=kR26hFqWMwaI6KiVDXXU2mgAajlJ1aVlGWffigzyDMY=;
+	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
+	b=btiHiVJQFOez4Qq9O3T0DaWAxKsliipE4jXcUZX1LwRtorAT5OYVyf5Xq5b4YFqqM
+	 6V+GBCzsHSRJIgJzR+Pbjc5GCkoQx+EiGWpTFoIJTnq6TXpe+a2rS+TmN/f73dqk/M
+	 jZtCt9pv/ACFZ0cb82kmHPVkaJb9aFzlv31VLpyp40/Z3rzXLhrAk0S5ZjxvWEmXY5
+	 iUsyvElnAxrOx/sVPJHmP0Ma/dJ9aRYZGrb9E8gST5hoK2haOAzIEtcBwYI1+OVIjA
+	 AcBSYDENDr6iuZjxM/gnYmn0h3zGdqC9p/Iq8WsJT6Yqa0L7Oygus+vj0bEOk1QDbU
+	 wE6RcP2B1n94A==
+Received: from vninja (unknown [100.64.1.54])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange x25519 server-signature RSA-PSS (4096 bits) server-digest
+ SHA256)
+	(No client certificate requested)
+	(Authenticated sender: gkiagia)
+	by bali.collaboradmins.com (Postfix) with ESMTPSA id EC87F17E0887;
+	Fri, 21 Aug 2026 21:35:21 +0200 (CEST)
+From: George Kiagiadakis <george.kiagiadakis@collabora.com>
+To: linux-bluetooth@vger.kernel.org
+Cc: George Kiagiadakis <george.kiagiadakis@collabora.com>
+Subject: [PATCH BlueZ 2/5] player: Answer pending request when the player is
+ destroyed
+Date: Fri, 21 Aug 2026 22:34:46 +0300
+Message-ID: <20260821193449.1336263-3-george.kiagiadakis@collabora.com>
+X-Mailer: git-send-email 2.53.0
+In-Reply-To: <20260821193449.1336263-1-george.kiagiadakis@collabora.com>
+References: <20260821193449.1336263-1-george.kiagiadakis@collabora.com>
+Precedence: bulk
+X-Mailing-List: linux-bluetooth@vger.kernel.org
+List-Id: <linux-bluetooth.vger.kernel.org>
+List-Subscribe: <mailto:linux-bluetooth+subscribe@vger.kernel.org>
+List-Unsubscribe: <mailto:linux-bluetooth+unsubscribe@vger.kernel.org>
+MIME-Version: 1.0
+
+media_player_destroy() dropped its reference to the pending request
+without answering it. A client with a ListItems(), Search(),
+ChangeFolder() or Play() in flight was therefore left waiting for its
+own D-Bus timeout to expire, 25s by default, whenever the player went
+away. That happens on every AVRCP disconnect, since avrcp destroys the
+controller player from its disconnect path.
+
+Reply with org.bluez.Error.Failed instead.
+
+Answering after the g_dbus_unregister_interface() calls above is fine,
+as replies are matched by serial rather than by object path, so the
+unref site does not need to move.
+
+Assisted-by: Claude:claude-opus-5 valgrind
+
+Upstream-Status: Submitted [https://patchwork.kernel.org/project/bluetooth/patch/20260821193449.1336263-3-george.kiagiadakis@collabora.com/]
+---
+ profiles/audio/player.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/profiles/audio/player.c b/profiles/audio/player.c
+index 568c70770..fa3810a7f 100644
+--- a/profiles/audio/player.c
++++ b/profiles/audio/player.c
+@@ -1257,8 +1257,11 @@ void media_player_destroy(struct media_player *mp)
+ 						mp->path,
+ 						MEDIA_FOLDER_INTERFACE);
+ 
+-	if (mp->msg)
++	if (mp->msg) {
++		g_dbus_send_message(btd_get_dbus_connection(),
++				btd_error_failed(mp->msg, "Player removed"));
+ 		dbus_message_unref(mp->msg);
++	}
+ 
+ 	g_slist_free_full(mp->pending, g_free);
+ 	g_slist_free_full(mp->folders, media_folder_destroy);
