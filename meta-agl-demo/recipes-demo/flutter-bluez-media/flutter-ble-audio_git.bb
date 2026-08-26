@@ -7,7 +7,7 @@ LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=4be81725e05bc258e9c398895cb112e1"
 
 SRC_URI = "gitsm://github.com/jaydon2020/bluez_media_native.git;branch=main;protocol=https"
-SRCREV = "eb4b1f71e8f52b0d042b138889dbdf48cb86aca6"
+SRCREV = "c39e578f2be703af7e7f4b3ccd03aed67a47d8e7"
 
 DEPENDS += " \
     compiler-rt \
