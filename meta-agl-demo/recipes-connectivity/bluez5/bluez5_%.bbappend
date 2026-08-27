@@ -1,14 +1,16 @@
-FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
-
-SRC_URI:append = " \
-    file://0001-player-fix-mediaitem1-play-without-scope.patch \
-    file://0002-player-answer-pending-request-on-destroy.patch \
-    file://0003-player-update-number-of-items-on-scope-change.patch \
-    file://0004-player-report-ebusy-from-busy-search.patch \
-    file://0005-unit-test-media-player-add-media-player-tests.patch \
+SRC_URI = " \
+    git://github.com/bluez/bluez.git;branch=master;protocol=https \
+    file://init \
+    file://run-ptest \
 "
 
+SRCREV = "9f5adb00c7c1d3fcfa0afeaf53633eac90b5a927"
+S = "${WORKDIR}/git"
+
+PACKAGECONFIG:append = " obex-profiles"
+RDEPENDS:${PN}:append = " ${PN}-obex"
+
 do_install:append() {
-    sed -i 's/^#Experimental = false$/Experimental = true/' \
-        ${D}${sysconfdir}/bluetooth/main.conf
+    sed -i '/^ExecStart=.*bluetoothd$/ s/$/ -E/' \
+        ${D}${systemd_system_unitdir}/bluetooth.service
 }
