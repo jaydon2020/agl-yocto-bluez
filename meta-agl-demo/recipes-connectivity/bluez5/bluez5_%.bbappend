@@ -5,7 +5,6 @@ SRC_URI = " \
 "
 
 SRCREV = "9f5adb00c7c1d3fcfa0afeaf53633eac90b5a927"
-S = "${WORKDIR}/git"
 
 PACKAGECONFIG:append = " obex-profiles"
 RDEPENDS:${PN}:append = " ${PN}-obex"
