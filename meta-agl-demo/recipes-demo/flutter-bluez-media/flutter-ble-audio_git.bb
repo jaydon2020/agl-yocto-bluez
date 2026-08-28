@@ -7,6 +7,7 @@ LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=86d3f3a95c324c9479bd8986968f4327"
 
 SRC_URI = "gitsm://github.com/jaydon2020/bluez_media_native.git;branch=main;protocol=https"
+SRC_URI += "file://obex-session.conf"
 SRCREV = "b0884e3adc31c6b1689647d78246d993bd2831b9"
 
 DEPENDS += " \
@@ -43,6 +44,8 @@ AGL_APP_TEMPLATE = "agl-app-flutter"
 AGL_APP_NAME = "Bluetooth Media"
 AGL_APP_ID = "flutter_ble_audio"
 
+RDEPENDS:${PN}:append = " bluez5-obex"
+
 python do_compile:prepend() {
     import os
 
@@ -65,6 +68,9 @@ do_install:append() {
             install -m 0755 ${B}/libbluez_media_native.so "$app_libdir/"
         fi
     done
+
+    install -D -m 0644 ${UNPACKDIR}/obex-session.conf \
+        ${D}${systemd_system_unitdir}/agl-app-flutter@${AGL_APP_ID}.service.d/obex-session.conf
 }
 
 FILES:${PN}-dbg += "${FLUTTER_INSTALL_DIR}/*/*/lib/.debug/libbluez_media_native.so"
