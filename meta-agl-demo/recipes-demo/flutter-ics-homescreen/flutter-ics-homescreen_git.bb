@@ -16,7 +16,7 @@ SRC_URI = "git://github.com/jaydon2020/flutter-ics-homescreen;protocol=https;nob
            file://flutter-ics-homescreen.toml.kvm-tradeshow \
            file://kvm.conf \
 "
-SRCREV = "441ef9175e0be8b127e6da55782ac2c9964ae6cd"
+SRCREV = "8aee38fd01eb464649a8fd0d475e7b5c8d8c6aa9"
 
 PUBSPEC_APPNAME = "flutter_ics_homescreen"
 
@@ -155,6 +155,13 @@ APP_AOT_EXTRA:append = " ${DISABLE_BG_ANIMATION}"
 ENABLE_VOICE_ASSISTANT = "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'agl-offline-voice-agent', '-DENABLE_VOICE_ASSISTANT=true', '-DENABLE_VOICE_ASSISTANT=false', d)}"
 APP_AOT_EXTRA:append = " ${ENABLE_VOICE_ASSISTANT}"
 
+do_install:prepend() {
+    native_assets_dir="${S}/${FLUTTER_APPLICATION_PATH}/build/native_assets/linux"
+    install -d "$native_assets_dir"
+    install -m 0755 ${B}/libbluez_nc.so "$native_assets_dir/"
+    install -m 0755 ${BLUEZ_MEDIA_NATIVE_BUILD}/libbluez_media_native.so "$native_assets_dir/"
+}
+
 do_install:append() {
     install -D -m 0644 ${UNPACKDIR}/${BPN}.service ${D}${systemd_system_unitdir}/${BPN}.service
 
@@ -174,13 +181,6 @@ do_install:append() {
     install -m 0644 ${UNPACKDIR}/flutter-ics-homescreen.token ${D}${sysconfdir}/xdg/AGL/flutter-ics-homescreen/
     install -m 0644 ${UNPACKDIR}/radio-presets.toml ${D}${sysconfdir}/xdg/AGL/flutter-ics-homescreen/
 
-    for runtime_mode in ${FLUTTER_APP_RUNTIME_MODES}; do
-        app_libdir="${D}${FLUTTER_INSTALL_DIR}/${FLUTTER_SDK_VERSION}/$runtime_mode/lib"
-        if [ -d "$app_libdir" ]; then
-            install -m 0755 ${B}/libbluez_nc.so "$app_libdir/"
-            install -m 0755 ${BLUEZ_MEDIA_NATIVE_BUILD}/libbluez_media_native.so "$app_libdir/"
-        fi
-    done
 }
 
 ALTERNATIVE_LINK_NAME[flutter-ics-homescreen.toml] = "${sysconfdir}/xdg/AGL/flutter-ics-homescreen.toml"
@@ -194,6 +194,7 @@ RDEPENDS:${PN} += " \
     flutter-auto \
     agl-flutter-env \
     applaunchd \
+    bluez5-obex \
 "
 
 # KVM tradeshow demo specific configuration:
