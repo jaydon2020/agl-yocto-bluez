@@ -14,5 +14,6 @@ AGL_APPS_INSTALL += " \
     window-management-client-grpc \
     agl-shell-activator \
     ondemandnavi \
+    flutter-telephony \
     ${MUSICDATA} \
 "
