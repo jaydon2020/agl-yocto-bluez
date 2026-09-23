@@ -15,5 +15,6 @@ AGL_APPS_INSTALL += " \
     agl-shell-activator \
     ondemandnavi \
     flutter-telephony \
+    flutter-phone-message \
     ${MUSICDATA} \
 "
