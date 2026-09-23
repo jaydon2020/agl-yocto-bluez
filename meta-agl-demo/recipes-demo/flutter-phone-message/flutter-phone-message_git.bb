@@ -8,9 +8,8 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=82c2720ee875b422181e228795552d0e"
 
 SRC_URI = " \
     gitsm://github.com/jaydon2020/bluez_obex_native.git;protocol=https;branch=main \
-    file://0001-example-support-Dart-3.10.patch \
 "
-SRCREV = "960a4eeb403bd5895a701ecc05c7315dd663c47c"
+SRCREV = "1d46b1f43b4fd1892f0e2173b186d0c8d057e786"
 
 PV = "1.0+git${SRCPV}"
 
